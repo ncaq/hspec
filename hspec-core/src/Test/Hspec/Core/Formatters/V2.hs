@@ -262,7 +262,7 @@ defaultFailedFormatter = do
           let threshold = 2 :: Seconds
 
           mchunks <- liftIO $ if b
-            then timeout threshold (evaluate $ diff expected actual)
+            then timeout threshold (evaluate $ smartDiff expected actual)
             else return Nothing
 
           case mchunks of

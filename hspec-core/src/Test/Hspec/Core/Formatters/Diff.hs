@@ -2,6 +2,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Test.Hspec.Core.Formatters.Diff (
   Diff (..)
+, smartDiff
 , diff
 #ifdef TEST
 , partition
@@ -9,11 +10,24 @@ module Test.Hspec.Core.Formatters.Diff (
 #endif
 ) where
 
+import           Control.Arrow
 import           Prelude ()
-import           Test.Hspec.Core.Compat
+import           Test.Hspec.Core.Compat hiding (First)
 
 import           Data.Char
 import           Data.Algorithm.Diff
+
+smartDiff :: String -> String -> [Diff String]
+smartDiff expected actual = case (readMaybe expected, readMaybe actual) of
+  (Just expected_, Just actual_) | shouldParseBack expected_ && shouldParseBack actual_ && null newlineChunks -> chunks
+    where
+      chunks = diff expected_ actual_
+      newlineChunks = [() | First "\n" <- chunks] ++ [() | Second "\n" <- chunks]
+  _ -> diff expected actual
+  where
+    shouldParseBack = (&&) <$> all isSafe <*> isMultiLine
+    isMultiLine = lines >>> length >>> (> 1)
+    isSafe c = isAscii c && (not $ isControl c) || c == '\n'
 
 diff :: String -> String -> [Diff String]
 diff expected actual = map (fmap concat) $ getGroupedDiff (partition expected) (partition actual)
@@ -21,6 +35,7 @@ diff expected actual = map (fmap concat) $ getGroupedDiff (partition expected) (
 partition :: String -> [String]
 partition = filter (not . null) . mergeBackslashes . breakList isAlphaNum
   where
+    mergeBackslashes :: [String] -> [String]
     mergeBackslashes xs = case xs of
       ['\\'] : (splitEscape -> Just (escape, ys)) : zs -> ("\\" ++ escape) : ys : mergeBackslashes zs
       z : zs -> z : mergeBackslashes zs
