@@ -15,9 +15,12 @@ import           Prelude ()
 import           Test.Hspec.Core.Compat hiding (First)
 
 import           Data.Char
-import           Data.Algorithm.Diff
+import qualified Data.Algorithm.Diff as Diff
 
-smartDiff :: String -> String -> [Diff String]
+data Diff = First String | Second String | Both String
+  deriving (Eq, Show)
+
+smartDiff :: String -> String -> [Diff]
 smartDiff expected actual = case (readMaybe expected, readMaybe actual) of
   (Just expected_, Just actual_) | shouldParseBack expected_ && shouldParseBack actual_ && null newlineChunks -> chunks
     where
@@ -29,8 +32,14 @@ smartDiff expected actual = case (readMaybe expected, readMaybe actual) of
     isMultiLine = lines >>> length >>> (> 1)
     isSafe c = isAscii c && (not $ isControl c) || c == '\n'
 
-diff :: String -> String -> [Diff String]
-diff expected actual = map (fmap concat) $ getGroupedDiff (partition expected) (partition actual)
+diff :: String -> String -> [Diff]
+diff expected actual = map (toDiff . fmap concat) $ Diff.getGroupedDiff (partition expected) (partition actual)
+
+toDiff :: Diff.Diff String -> Diff
+toDiff d = case d of
+  Diff.First xs -> First xs
+  Diff.Second xs -> Second xs
+  Diff.Both xs _ -> Both xs
 
 partition :: String -> [String]
 partition = filter (not . null) . mergeBackslashes . breakList isAlphaNum

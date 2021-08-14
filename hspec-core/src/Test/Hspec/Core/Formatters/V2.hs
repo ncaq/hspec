@@ -61,8 +61,15 @@ module Test.Hspec.Core.Formatters.V2 (
 -- ** Helpers
 , formatLocation
 , formatException
+
+#ifdef TEST
+, Chunk(..)
+, ColorChunk(..)
+, indentChunks
+#endif
 ) where
 
+import           Data.Char
 import           Prelude ()
 import           Test.Hspec.Core.Compat hiding (First)
 
@@ -271,24 +278,19 @@ defaultFailedFormatter = do
             Nothing -> do
               writeDiff [First expected, Second actual] write write
           where
-            indented output text = case break (== '\n') text of
-              (xs, "") -> output xs
-              (xs, _ : ys) -> output (xs ++ "\n") >> write (indentation ++ "          ") >> indented output ys
-
             writeDiff chunks extra missing = do
-              withFailColor $ write (indentation ++ "expected: ")
-              forM_ chunks $ \ chunk -> case chunk of
-                Both a _ -> indented write a
-                First a -> indented extra a
-                Second _ -> return ()
-              writeLine ""
+              writeChunks "expected: " (expectedChunks chunks) extra
+              writeChunks " but got: " (actualChunks chunks) missing
 
-              withFailColor $ write (indentation ++ " but got: ")
-              forM_ chunks $ \ chunk -> case chunk of
-                Both a _ -> indented write a
-                First _ -> return ()
-                Second a -> indented missing a
+            writeChunks :: String -> [Chunk] -> (String -> FormatM ()) -> FormatM ()
+            writeChunks pre chunks colorize = do
+              withFailColor $ write (indentation ++ pre)
+              forM_ (indentChunks indentation_ chunks) $ \ chunk -> case chunk of
+                PlainChunk a -> write a
+                ColorChunk a -> colorize a
               writeLine ""
+              where
+                indentation_ = indentation ++ replicate (length pre) ' '
 
         Error _ e -> withFailColor . indent $ (("uncaught exception: " ++) . formatException) e
 
@@ -299,6 +301,70 @@ defaultFailedFormatter = do
         indent message = do
           forM_ (lines message) $ \line -> do
             writeLine (indentation ++ line)
+
+data Chunk = Original String | Modified String
+  deriving (Eq, Show)
+
+expectedChunks :: [Diff] -> [Chunk]
+expectedChunks = mapMaybe $ \ chunk -> case chunk of
+  Both a -> Just $ Original a
+  First a -> Just $ Modified a
+  Second _ -> Nothing
+
+actualChunks :: [Diff] -> [Chunk]
+actualChunks = mapMaybe $ \ chunk -> case chunk of
+  Both a -> Just $ Original a
+  First _ -> Nothing
+  Second a -> Just $ Modified a
+
+data ColorChunk = PlainChunk String | ColorChunk String
+  deriving (Eq, Show)
+
+simplify :: [ColorChunk] -> [ColorChunk]
+simplify input = case input of
+  PlainChunk "" : xs -> simplify xs
+  PlainChunk xs : PlainChunk ys : zs -> simplify $ PlainChunk (xs ++ ys) : zs
+  x : xs -> x : simplify xs
+  [] -> []
+
+addIsLast :: [a] -> [(a, Bool)]
+addIsLast input = case input of
+  [] -> []
+  [x] -> [(x, True)]
+  x : xs -> (x, False) : addIsLast xs
+
+indentChunks :: String -> [Chunk] -> [ColorChunk]
+indentChunks indentation = simplify . concatMap indented_ . addIsLast
+  where
+    indented_ :: (Chunk, Bool) -> [ColorChunk]
+    indented_ (x, isLast) = case x of
+      Original y -> [indentOriginal indentation y]
+      Modified y -> indentModified isLast indentation y
+
+indentOriginal :: String -> String -> ColorChunk
+indentOriginal indentation = PlainChunk . go
+  where
+    go text = case break (== '\n') text of
+      (xs, _ : ys) -> xs ++ "\n" ++ indentation ++ go ys
+      (xs, _) -> xs
+
+indentModified :: Bool -> String -> String -> [ColorChunk]
+indentModified isLast indentation input = go input
+  where
+    go text = case break (== '\n') text of
+      ("", "") -> []
+      (xs, _ : ys) -> segment xs ++ PlainChunk "\n" : PlainChunk indentation : go ys
+      (xs, "") -> lastSegment xs
+
+    segment xs = case span isSpace $ reverse xs of
+      ("", _) -> [ColorChunk xs]
+      (_, "") -> [ColorChunk xs]
+      (ys, zs) -> [ColorChunk (reverse zs), ColorChunk (reverse ys)]
+
+    lastSegment xs
+      | all isSpace input = [ColorChunk xs]
+      | all (== ' ') xs && not isLast = [PlainChunk xs]
+      | otherwise = segment xs
 
 defaultFooter :: FormatM ()
 defaultFooter = do

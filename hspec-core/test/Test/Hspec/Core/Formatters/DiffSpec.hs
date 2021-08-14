@@ -2,9 +2,7 @@
 module Test.Hspec.Core.Formatters.DiffSpec (spec) where
 
 import           Prelude ()
-import           Test.Hspec.Core.Compat
-
-import           Helper
+import           Helper hiding (First)
 import           Data.Char
 
 import           Test.Hspec.Core.Formatters.Diff as Diff
@@ -16,13 +14,13 @@ spec :: Spec
 spec = do
   describe "smartDiff" $ do
     it "parses back multi-line string literals" $ do
-      smartDiff (show "foo\nbar\nbaz\n") (show "foo\nbaz\n") `shouldBe` [both "foo\n", first "bar\n", both "baz\n"]
+      smartDiff (show "foo\nbar\nbaz\n") (show "foo\nbaz\n") `shouldBe` [Both "foo\n", First "bar\n", Both "baz\n"]
 
     it "does not parse back string literals that span a single line" $ do
-      smartDiff (show "foo\n") (show "bar\n") `shouldBe` [both "\"", first "foo", second "bar", both "\\n\""]
+      smartDiff (show "foo\n") (show "bar\n") `shouldBe` [Both "\"", First "foo", Second "bar", Both "\\n\""]
 
     it "does not parse back string literals if the resulting diff would contain chunks consisting of a single newline" $ do
-      smartDiff (show "foo\nbar  \nbaz\n") (show "foo\nbar\n  baz\n") `shouldBe` [both "\"foo\\nbar", second "\\n", both "  ", first "\\n", both "baz\\n\""]
+      smartDiff (show "foo\nbar  \nbaz\n") (show "foo\nbar\n  baz\n") `shouldBe` [Both "\"foo\\nbar", Second "\\n", Both "  ", First "\\n", Both "baz\\n\""]
 
   describe "partition" $ do
     context "with a single shown Char" $ do
@@ -54,7 +52,3 @@ spec = do
     context "with a list where the predicate does not match at the beginning and the end" $ do
       it "breaks the list into pieces" $ do
         breakList isAlphaNum "  foo bar  baz  " `shouldBe` [" ", " ", "foo", " ", "bar", " ", " ", "baz", " ", " "]
-  where
-    both x = Both x x
-    first = Diff.First
-    second = Second

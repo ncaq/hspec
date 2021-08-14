@@ -14,6 +14,7 @@ import qualified Control.Exception as E
 import qualified Test.Hspec.Core.Spec as H
 import qualified Test.Hspec.Core.Spec as Spec
 import qualified Test.Hspec.Core.Runner as H
+import           Test.Hspec.Core.Formatters.V2 (indentChunks, Chunk(..), ColorChunk(..))
 import qualified Test.Hspec.Core.Formatters.V2 as H
 import qualified Test.Hspec.Core.Formatters.V2 as Formatter
 import qualified Test.Hspec.Core.Formatters.Monad as H
@@ -106,6 +107,49 @@ testSpec = do
 
 spec :: Spec
 spec = do
+  describe "indentChunks" $ do
+    context "with Original" $ do
+      it "returns the empty list on empty input" $ do
+        indentChunks "  " [Original ""] `shouldBe` []
+
+      it "does not indent single-line input" $ do
+        indentChunks "  " [Original "foo"] `shouldBe` [PlainChunk "foo"]
+
+      it "indents multi-line input" $ do
+        indentChunks "  " [Original "foo\nbar\nbaz\n"] `shouldBe` [PlainChunk "foo\n  bar\n  baz\n  "]
+
+    context "with Modified" $ do
+      it "returns the empty list on empty input" $ do
+        indentChunks "  " [Modified ""] `shouldBe` []
+
+      it "does not indent single-line input" $ do
+        indentChunks "  " [Modified "foo"] `shouldBe` [ColorChunk "foo"]
+
+      it "indents multi-line input" $ do
+        indentChunks "  " [Modified "foo\nbar\nbaz\n"] `shouldBe` [ColorChunk "foo", PlainChunk "\n  ", ColorChunk "bar", PlainChunk "\n  ", ColorChunk "baz", PlainChunk "\n  "]
+
+      context "when input contains non-whitespace characters" $ do
+        context "when a segment that consist solely of spaces appears within the input" $ do
+          it "does not colorize the segment" $ do
+            -- * not an empty line
+            -- * not at the end of a line
+            -- * not at the end of the input
+            indentChunks "  " [Modified "foo\n  ", Original "bar"] `shouldBe` [ColorChunk "foo", PlainChunk "\n    bar"]
+
+        context "when a segment that consist solely of spaces appears at the end of the input" $ do
+          it "colorizes the segment" $ do
+            indentChunks "  " [Modified "foo\n  "] `shouldBe` [ColorChunk "foo", PlainChunk "\n  ", ColorChunk "  "]
+
+        it "splits off whitespace-only segments at the end of a line so that they get colorized" $ do
+          indentChunks "  " [Modified "foo  \n"] `shouldBe` [ColorChunk "foo", ColorChunk "  ", PlainChunk "\n  "]
+
+        it "colorizes empty lines" $ do
+          indentChunks "  " [Modified "foo\n  \n"] `shouldBe` [ColorChunk "foo", PlainChunk "\n  ", ColorChunk "  ", PlainChunk "\n  "]
+
+      context "when input contains only whitespace characters" $ do
+        it "colorizes the input" $ do
+          indentChunks "  " [Modified "  "] `shouldBe` [ColorChunk "  "]
+
   describe "progress" $ do
     let formatter = H.progress
         item = Formatter.Item Nothing 0 ""
