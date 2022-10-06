@@ -1,5 +1,5 @@
 GIT
-  remote: git://github.com/hspec/pygments.rb.git
+  remote: https://github.com/hspec/pygments.rb.git
   revision: aa9d3ef47029276ac585f1070ce853541bc0954f
   tag: v1.1.2-hspec
   specs:
@@ -7,7 +7,7 @@ GIT
       multi_json (>= 1.0.0)
 
 GIT
-  remote: git://github.com/sfi0zy/jekyll-less.git
+  remote: https://github.com/sfi0zy/jekyll-less.git
   revision: ef28fd77dfa18f6b23024622abd3238ed6b1f9ad
   specs:
     jekyll-less (0.1.0)
@@ -18,8 +18,8 @@ GEM
   remote: https://rubygems.org/
   specs:
     RedCloth (4.3.2)
-    addressable (2.5.0)
-      public_suffix (~> 2.0, >= 2.0.2)
+    addressable (2.8.1)
+      public_suffix (>= 2.0.2, < 6.0)
     colorator (1.1.0)
     commonjs (0.2.7)
     ffi (1.9.24)
@@ -48,10 +48,10 @@ GEM
       rb-fsevent (~> 0.9, >= 0.9.4)
       rb-inotify (~> 0.9, >= 0.9.7)
     mercenary (0.3.6)
-    multi_json (1.12.1)
+    multi_json (1.15.0)
     pathutil (0.14.0)
       forwardable-extended (~> 2.6)
-    public_suffix (2.0.5)
+    public_suffix (5.0.0)
     rb-fsevent (0.9.8)
     rb-inotify (0.9.8)
       ffi (>= 0.5.0)
